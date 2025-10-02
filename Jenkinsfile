@@ -1,8 +1,6 @@
 pipeline {
   agent { docker { image 'node:16' } }
 
-  options { timestamps() }
-
   stages {
     stage('Checkout') {
       steps { checkout scm }
@@ -23,5 +21,4 @@ pipeline {
     }
   }
 }
-
 
