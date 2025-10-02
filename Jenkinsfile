@@ -1,22 +1,21 @@
 pipeline {
-  agent { docker { image 'node:16' } }
+  agent any
 
   stages {
     stage('Checkout') {
       steps { checkout scm }
     }
 
-    stage('Install deps') {
+    stage('Install & Test (Node 16 in container)') {
       steps {
-        sh 'node -v'
-        sh 'npm -v'
-        sh 'npm install --save'
-      }
-    }
-
-    stage('Unit tests') {
-      steps {
-        sh 'npm test || echo "No tests found; continuing"'
+        sh '''
+          docker run --rm -v "$PWD":/app -w /app node:16 bash -lc "
+            node -v &&
+            npm -v &&
+            npm install --save &&
+            npm test || echo 'No tests found; continuing'
+          "
+        '''
       }
     }
   }
