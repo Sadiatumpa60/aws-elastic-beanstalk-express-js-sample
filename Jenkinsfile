@@ -2,7 +2,7 @@
   agent any
 
   environment {
-    IMAGE = "<your_dockerhub_username>/eb-express:${BUILD_NUMBER}"
+    IMAGE = "<sadiacurtin1999>/eb-express:${BUILD_NUMBER}"
   }
 
   stages {
