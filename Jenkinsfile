@@ -11,13 +11,14 @@ pipeline {
     DOCKERHUB_USER = "${env.DOCKERHUB_USER}"
     DOCKERHUB_TOKEN = "${env.DOCKERHUB_TOKEN}"
     SNYK_TOKEN = "${env.SNYK_TOKEN}"
+    INSIDE_ARGS = '-v /var/jenkins_home:/var/jenkins_home'
   }
 
   stages {
     stage('Install') {
       steps {
         script {
-          docker.image('node:16').inside {
+          docker.image('node:16').inside(INSIDE_ARGS) {
             sh '''
               node -v
               npm -v
@@ -31,7 +32,7 @@ pipeline {
     stage('Test') {
       steps {
         script {
-          docker.image('node:16').inside {
+          docker.image('node:16').inside(INSIDE_ARGS) {
             sh 'npm test || echo "Tests skipped or failed"'
           }
         }
@@ -62,7 +63,7 @@ pipeline {
     stage('Security Scan') {
       steps {
         script {
-          docker.image('node:16').inside {
+          docker.image('node:16').inside(INSIDE_ARGS) {
             sh '''
               if [ -n "$SNYK_TOKEN" ]; then
                 npx snyk auth "$SNYK_TOKEN" || true
