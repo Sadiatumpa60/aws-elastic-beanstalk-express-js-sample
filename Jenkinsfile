@@ -1,10 +1,6 @@
 pipeline {
   agent any
 
-  environment {
-    IMAGE = "SadiaCurtin1999/eb-express:${BUILD_NUMBER}"
-  }
-
   stages {
     stage('Checkout') {
       steps {
@@ -25,16 +21,6 @@ pipeline {
       }
     }
 
-    stage('Build Docker Image') {
-      steps {
-        sh '''
-          echo "Building $IMAGE"
-          docker build -t "$IMAGE" .
-          docker image ls "$IMAGE"
-        '''
-      }
-    }
-
     stage('Vulnerability Scan (fail on High/Critical)') {
       steps {
         sh '''
@@ -49,6 +35,9 @@ pipeline {
         '''
       }
     }
+  }
+}
+
   }
 }
 
