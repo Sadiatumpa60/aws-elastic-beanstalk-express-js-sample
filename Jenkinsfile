@@ -16,19 +16,25 @@ pipeline {
   stages {
     stage('Install') {
       steps {
-        sh '''
-          node -v || true
-          npm -v || true
-          npm ci || npm install
-        '''
+        script {
+          docker.image('node:16').inside {
+            sh '''
+              node -v
+              npm -v
+              npm ci || npm install
+            '''
+          }
+        }
       }
     }
 
     stage('Test') {
       steps {
-        sh '''
-          npm test || echo "Tests skipped or failed"
-        '''
+        script {
+          docker.image('node:16').inside {
+            sh 'npm test || echo "Tests skipped or failed"'
+          }
+        }
       }
     }
 
@@ -55,14 +61,18 @@ pipeline {
 
     stage('Security Scan') {
       steps {
-        sh '''
-          if [ -n "$SNYK_TOKEN" ]; then
-            npx snyk auth "$SNYK_TOKEN" || true
-            npx snyk test --severity-threshold=high
-          else
-            npm audit --audit-level=high || (echo "High/Critical vulnerabilities found" && exit 1)
-          fi
-        '''
+        script {
+          docker.image('node:16').inside {
+            sh '''
+              if [ -n "$SNYK_TOKEN" ]; then
+                npx snyk auth "$SNYK_TOKEN" || true
+                npx snyk test --severity-threshold=high
+              else
+                npm audit --audit-level=high || (echo "High/Critical vulnerabilities found" && exit 1)
+              fi
+            '''
+          }
+        }
       }
     }
   }
@@ -77,6 +87,3 @@ pipeline {
     }
   }
 }
-
-
-
