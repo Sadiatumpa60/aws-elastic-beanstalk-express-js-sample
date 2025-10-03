@@ -1,8 +1,8 @@
- pipeline {
+pipeline {
   agent any
 
   environment {
-    IMAGE = "<sadiacurtin1999>/eb-express:${BUILD_NUMBER}"
+    IMAGE = "SadiaCurtin1999/eb-express:${BUILD_NUMBER}"
   }
 
   stages {
@@ -31,6 +31,21 @@
           echo "Building $IMAGE"
           docker build -t "$IMAGE" .
           docker image ls "$IMAGE"
+        '''
+      }
+    }
+
+    stage('Vulnerability Scan (fail on High/Critical)') {
+      steps {
+        sh '''
+          docker run --rm \
+            -v "$PWD":/app -w /app \
+            aquasec/trivy:0.54.1 fs \
+            --scanners vuln \
+            --ignore-unfixed \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            .
         '''
       }
     }
