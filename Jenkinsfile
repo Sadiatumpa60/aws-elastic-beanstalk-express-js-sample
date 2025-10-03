@@ -1,41 +1,82 @@
 pipeline {
   agent any
 
-  stages {
-    stage('Checkout') {
-      steps {
-        checkout scm
-      }
-    }
+  options {
+    timestamps()
+    buildDiscarder(logRotator(numToKeepStr: '10', artifactNumToKeepStr: '5'))
+  }
 
-    stage('Install & Test (Node 16 in container)') {
+  environment {
+    IMAGE_NAME = 'yourdockeruser/aws-eb-express-sample'
+    DOCKERHUB_USER = "${env.DOCKERHUB_USER}"
+    DOCKERHUB_TOKEN = "${env.DOCKERHUB_TOKEN}"
+    SNYK_TOKEN = "${env.SNYK_TOKEN}"
+  }
+
+  stages {
+    stage('Install') {
       steps {
         sh '''
-          docker run --rm -v "$PWD":/app -w /app node:16 bash -lc "
-            node -v &&
-            npm -v &&
-            npm install --save &&
-            npm test || echo 'No tests found; continuing'
-          "
+          node -v || true
+          npm -v || true
+          npm ci || npm install
         '''
       }
     }
 
-    stage('Vulnerability Scan (fail on High/Critical)') {
+    stage('Test') {
       steps {
         sh '''
-          docker run --rm \
-            -v "$PWD":/app -w /app \
-            aquasec/trivy:0.54.1 fs \
-            --scanners vuln \
-            --ignore-unfixed \
-            --severity HIGH,CRITICAL \
-            --exit-code 1 \
-            .
+          npm test || echo "Tests skipped or failed"
+        '''
+      }
+    }
+
+    stage('Build Docker') {
+      steps {
+        sh '''
+          docker build -t $IMAGE_NAME:$BUILD_NUMBER .
+          docker image inspect $IMAGE_NAME:$BUILD_NUMBER --format='{{.Id}}' | tee docker-image.txt
+        '''
+      }
+    }
+
+    stage('Push Docker (optional)') {
+      when {
+        expression { return (env.DOCKERHUB_USER?.trim() && env.DOCKERHUB_TOKEN?.trim()) }
+      }
+      steps {
+        sh '''
+          echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
+          docker push $IMAGE_NAME:$BUILD_NUMBER
+        '''
+      }
+    }
+
+    stage('Security Scan') {
+      steps {
+        sh '''
+          if [ -n "$SNYK_TOKEN" ]; then
+            npx snyk auth "$SNYK_TOKEN" || true
+            npx snyk test --severity-threshold=high
+          else
+            npm audit --audit-level=high || (echo "High/Critical vulnerabilities found" && exit 1)
+          fi
         '''
       }
     }
   }
+
+  post {
+    always {
+      sh '''
+        mkdir -p logs reports coverage
+        echo "Build $BUILD_NUMBER finished at $(date)" > logs/build.txt
+      '''
+      archiveArtifacts artifacts: 'logs/**/*, reports/**/*, coverage/**/*, docker-image.txt', onlyIfSuccessful: false
+    }
+  }
 }
+
 
 
